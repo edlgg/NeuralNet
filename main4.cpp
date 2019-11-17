@@ -12,7 +12,7 @@ using namespace std;
 // #define DATA_LOCATION "fakeData.csv"
 
 #define IN_SIZE 2
-#define HIDDEN_SIZE 2
+#define HIDDEN_SIZE 6
 #define OUT_SIZE 2
 
 #define EPOCS 300
@@ -390,11 +390,12 @@ struct Layer
     if (layerType == LayerType::Input || layerType == LayerType::Hidden)
       neurons[0].actVal = 1;
 
-    if (layerType == LayerType::Input){
+    if (layerType == LayerType::Input)
+    {
       for (size_t i = 0; i < neurons.size(); i++)
-        {
-          neurons[i].actVal = neurons[i].inVal;
-        }
+      {
+        neurons[i].actVal = neurons[i].inVal;
+      }
     }
   }
 
@@ -518,7 +519,7 @@ struct Network
     this->forwardProp(row);
     double y1 = layers[2].neurons[0].actVal;
     double y2 = layers[2].neurons[1].actVal;
-    // double y1ActualDenorm = dataSet.y1Denorm(y.first);
+    // double y1ActualDenorm = dataSet.y1Denorm(y.first); move this here from getmse and getme
     // double y2ActualDenorm = dataSet.y2Denorm(y.second);
     return make_pair(y1, y2);
   }
@@ -550,10 +551,10 @@ struct Network
     for (size_t i = 0; i < testFeatures.size(); i++)
     {
       pair<double, double> y = predict(testFeatures[0]);
-      double y1ExpectedDenorm = dataSet.y1Denorm(testLabels[i][0]);
       double y1ActualDenorm = dataSet.y1Denorm(y.first);
-      double y2ExpectedDenorm = dataSet.y2Denorm(testLabels[i][1]);
       double y2ActualDenorm = dataSet.y2Denorm(y.second);
+      double y1ExpectedDenorm = dataSet.y1Denorm(testLabels[i][0]);
+      double y2ExpectedDenorm = dataSet.y2Denorm(testLabels[i][1]);
       double y1SError = abs(y1ExpectedDenorm - y1ActualDenorm);
       double y2SError = abs(y2ExpectedDenorm - y1ActualDenorm);
       mse += (y1SError + y2SError) / 2;
@@ -595,12 +596,12 @@ struct Network
     dataSet.splitData();
 
     for (size_t i = 0; i < EPOCS; i++)
-    for (size_t i = 0; i < 1; i++)
+    // for (size_t i = 0; i < 1; i++)
     {
       cout << "EPOC: " << i << endl;
       dataSet.shuffleTrainData();
       for (size_t j = 0; j < dataSet.trainData.size(); j++)
-      for (size_t j = 0; j < 1; j++)
+      // for (size_t j = 0; j < 1; j++)
       {
         vector<double> row = dataSet.getTrainFeatures()[j];
         // cout << "ROW " << row[0] << " : " << row[1] << endl;
@@ -655,7 +656,8 @@ struct Network
     return make_pair(y1, y2);
   }
 
-  void test(){
+  void test()
+  {
     dataSet.readData();
     dataSet.computeMinAndMax();
     dataSet.printLimits();
@@ -665,14 +667,12 @@ struct Network
     vector<vector<double>> features = this->dataSet.getTestFeatures();
     vector<vector<double>> labels = this->dataSet.getTestLabels();
     cout << features.size();
-    cout << "aaa" << features[1][0] << " "<<features[1][1] << endl;
+    cout << "aaa" << features[1][0] << " " << features[1][1] << endl;
     for (size_t i = 0; i < features.size(); i++)
     {
-      pair<double,double> Y = this->evaluate(features[i][0],features[i][1]);
+      pair<double, double> Y = this->evaluate(features[i][0], features[i][1]);
       cout << "x1: " << features[i][0] << " x2: " << features[i][1] << " y1e: " << labels[i][0] << " y2e: " << labels[i][1] << " y1a: " << Y.first << " y2a: " << Y.second << endl;
     }
-
-
   }
 };
 
