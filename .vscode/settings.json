@@ -1,0 +1,17 @@
+{
+  "files.associations": {
+    "*.jinja2": "html",
+    "*.js": "javascript",
+    "vector": "cpp",
+    "string": "cpp",
+    "*.tcc": "cpp",
+    "istream": "cpp",
+    "iostream": "cpp",
+    "ostream": "cpp",
+    "array": "cpp",
+    "string_view": "cpp",
+    "initializer_list": "cpp",
+    "utility": "cpp",
+    "deque": "cpp"
+  }
+}
