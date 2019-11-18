@@ -12,13 +12,13 @@ using namespace std;
 // #define DATA_LOCATION "fakeData.csv"
 
 #define IN_SIZE 2
-#define HIDDEN_SIZE 6
+#define HIDDEN_SIZE 2
 #define OUT_SIZE 2
 
-#define EPOCS 300
+#define EPOCS 1000
 #define LAMBDA 1
 #define ALPHA 0.6
-#define ETA 0.8
+#define ETA 1
 
 #define CAP_DATA true
 #define CAP_LIMIT 3000
@@ -231,12 +231,12 @@ struct DataSet
     return features;
   }
 
-  vector<vector<double>> getValidationLabels()
+  vector<pair<double, double>> getValidationLabels()
   {
-    vector<vector<double>> labels = {};
+    vector<pair<double,double>> labels = {};
     for (size_t i = 0; i < validationData.size(); i++)
     {
-      labels.push_back({validationData[i][2], validationData[i][3]});
+      labels.push_back(make_pair(validationData[i][2], validationData[i][3]));
     }
     return labels;
   }
@@ -295,17 +295,30 @@ struct Neuron
   {
     if (layerType == LayerType::Output)
     {
-      double error = expectedVal - actVal;
+      double error = actVal - expectedVal;
+      // cout << "LAMBDA: " << LAMBDA << endl;
+      // cout << "actVal: " << actVal << endl;
+      // cout << "1-actVal: " << 1 - actVal << endl;
+      // cout << "error: " << error << endl;
       this->G = LAMBDA * actVal * (1 - actVal) * error;
     }
     else if (layerType == LayerType::Hidden)
     {
       this->G = LAMBDA * actVal * (1 - actVal) * sum;
     }
+    else
+      cout << "This shouldnt happen 2";
 
     for (size_t i = 0; i < deltaWeights.size(); i++)
     {
-      deltaWeights[i] = ETA * this->G * previousActVals[i] + ALPHA * deltaWeights[i];
+      // deltaWeights[i] = ETA * this->G * previousActVals[i] + ALPHA * deltaWeights[i];
+      // cout << "******: " << endl;
+      // cout << "ETA: " << ETA << endl;
+      // cout << "this->G: " << this->G << endl;
+      // cout << "previousActVals[i]: " << previousActVals[i] << endl;
+      deltaWeights[i] = ETA * this->G * previousActVals[i];
+      // cout << "deltaWeights[i]: " << deltaWeights[i] << endl;
+      // cout << "**********" << endl;
     }
   }
 
@@ -319,11 +332,18 @@ struct Neuron
 
   void printNeuron()
   {
-    cout << "Neuron- inVal: " << inVal << " actVal: " << actVal << endl;
-    cout << "   weights- ";
+    cout << "    Neuron- inVal: " << inVal << " actVal: " << actVal << endl;
+    cout << "        G- " << G << endl;
+    cout << "        weights- ";
     for (size_t i = 0; i < weights.size(); i++)
     {
       cout << weights[i] << " ";
+    }
+    cout << endl;
+    cout << "        deltaWeights- ";
+    for (size_t i = 0; i < deltaWeights.size(); i++)
+    {
+      cout << deltaWeights[i] << " ";
     }
     cout << endl;
   }
@@ -421,7 +441,7 @@ struct Layer
     {
       for (int i = 0; i < neurons.size(); i++)
       {
-        neurons[i].computeDeltaWeights(LayerType::Output, x[i], previousActVals, -1);
+        neurons[i].computeDeltaWeights(LayerType::Output, x[i], previousActVals, 1);
         neurons[i].updateWeights();
       }
     }
@@ -442,6 +462,8 @@ struct Layer
         neurons[i].updateWeights();
       }
     }
+    else
+      cout << "This shouldnt happen" << endl;
   }
 
   vector<double> getGs()
@@ -464,9 +486,9 @@ struct Layer
     return weights;
   }
 
-  void printLayer()
+  void printLayer(int layerNumber)
   {
-    cout << "Layer" << endl;
+    cout << "Layer " << layerNumber << endl;
     for (size_t i = 0; i < neurons.size(); i++)
     {
       neurons[i].printNeuron();
@@ -511,7 +533,7 @@ struct Network
   {
     for (size_t i = 0; i < layers.size(); i++)
     {
-      layers[i].printLayer();
+      layers[i].printLayer(i);
     }
   }
   pair<double, double> predict(vector<double> row)
@@ -519,47 +541,68 @@ struct Network
     this->forwardProp(row);
     double y1 = layers[2].neurons[0].actVal;
     double y2 = layers[2].neurons[1].actVal;
-    // double y1ActualDenorm = dataSet.y1Denorm(y.first); move this here from getmse and getme
-    // double y2ActualDenorm = dataSet.y2Denorm(y.second);
-    return make_pair(y1, y2);
+    // double y1ActualDenorm = dataSet.y1Denorm(y1);
+    // double y2ActualDenorm = dataSet.y2Denorm(y2);
+    return make_pair(y1,y2);
   }
 
-  double getMSE()
+  // double getMSE()
+  // {
+  //   vector<vector<double>> testFeatures = dataSet.getValidationFeatures();
+  //   vector<vector<double>> testLabels = dataSet.getValidationLabels();
+  //   double mse = 0;
+  //   for (size_t i = 0; i < testFeatures.size(); i++)
+  //   {
+  //     pair<double, double> y = predict(testFeatures[0]);
+  //     double y1ActualDenorm = dataSet.y1Denorm(y.first);  // TODO: move this to predict
+  //     double y2ActualDenorm = dataSet.y2Denorm(y.second); // TODO: Have to add load limits to loadModel
+  //     double y1ExpectedDenorm = dataSet.y1Denorm(testLabels[i][0]);
+  //     double y2ExpectedDenorm = dataSet.y2Denorm(testLabels[i][1]);
+  //     double y1SError = pow(y1ExpectedDenorm - y.first, 2);
+  //     double y2SError = pow(y2ExpectedDenorm - y.second, 2);
+  //     mse += (y1SError + y2SError) / 2;
+  //   }
+  //   return mse / testFeatures.size();
+  // }
+
+  double getME(vector<vector<double>> validationFeatures,vector<pair<double, double>> validationLabels )
   {
-    vector<vector<double>> testFeatures = dataSet.getValidationFeatures();
-    vector<vector<double>> testLabels = dataSet.getValidationLabels();
-    double mse = 0;
-    for (size_t i = 0; i < testFeatures.size(); i++)
-    {
-      pair<double, double> y = predict(testFeatures[0]);
-      double y1ActualDenorm = dataSet.y1Denorm(y.first);  // TODO: move this to predict
-      double y2ActualDenorm = dataSet.y2Denorm(y.second); // TODO: Have to add load limits to loadModel
-      double y1ExpectedDenorm = dataSet.y1Denorm(testLabels[i][0]);
-      double y2ExpectedDenorm = dataSet.y2Denorm(testLabels[i][1]);
-      double y1SError = pow(y1ExpectedDenorm - y.first, 2);
-      double y2SError = pow(y2ExpectedDenorm - y.second, 2);
-      mse += (y1SError + y2SError) / 2;
+    cout << "validationFeatures" << endl;
+    for(int i =0; i < 3; i++){
+      cout <<"    "<< validationFeatures[i][0] << " " <<validationFeatures[i][1] << endl;
     }
-    return mse / testFeatures.size();
+    cout << "validationLabels" << endl;
+    for(int i =0; i < 3; i++){
+      cout <<"    "<< validationLabels[i].first << " " <<validationLabels[i].second << endl;
+    }
+    vector<pair<double, double>> predicted = {};
+    for (size_t i = 0; i < validationFeatures.size(); i++)
+    {
+      predicted.push_back(predict(validationFeatures[i]));
+    }
+    cout << "predicted" << endl;
+    for(int i =0; i < 3; i++){
+      cout <<"    "<< predicted[i].first << " " <<predicted[i].second << endl;
+    }
+
+    return this->me(validationLabels, predicted);
   }
 
-  double getME()
+  double me(vector<pair<double,double>> expected, vector<pair<double,double>> predicted)
   {
-    vector<vector<double>> testFeatures = dataSet.getValidationFeatures();
-    vector<vector<double>> testLabels = dataSet.getValidationLabels();
-    double mse = 0;
-    for (size_t i = 0; i < testFeatures.size(); i++)
+    if (expected.size() != predicted.size())
     {
-      pair<double, double> y = predict(testFeatures[0]);
-      double y1ActualDenorm = dataSet.y1Denorm(y.first);
-      double y2ActualDenorm = dataSet.y2Denorm(y.second);
-      double y1ExpectedDenorm = dataSet.y1Denorm(testLabels[i][0]);
-      double y2ExpectedDenorm = dataSet.y2Denorm(testLabels[i][1]);
-      double y1SError = abs(y1ExpectedDenorm - y1ActualDenorm);
-      double y2SError = abs(y2ExpectedDenorm - y1ActualDenorm);
-      mse += (y1SError + y2SError) / 2;
+      cout << "This shouldnt happen me";
+      exit(1);
     }
-    return mse / testFeatures.size();
+    double me = 0;
+    for (size_t i = 0; i < expected.size(); i++)
+    {
+      double y1E = abs(expected[i].first - predicted[i].first);
+      double y2E = abs(expected[i].second - predicted[i].second);
+      me += (y1E + y2E) / 2;
+    }
+    return me / expected.size();
   }
 
   void saveState()
@@ -567,6 +610,14 @@ struct Network
     ofstream file;
     string hiddenSize = to_string(layers[1].neurons.size() - 1);
     file.open("savedModel_" + hiddenSize + ".txt");
+    file << dataSet.x1Min << endl;
+    file << dataSet.x1Max << endl;
+    file << dataSet.x2Min << endl;
+    file << dataSet.x2Max << endl;
+    file << dataSet.y1Min << endl;
+    file << dataSet.y1Max << endl;
+    file << dataSet.y2Min << endl;
+    file << dataSet.y2Max << endl;
     double hiddenLayerSize = layers[1].neurons.size();
     file << hiddenLayerSize << "\n";
     for (size_t i = 1; i < 3; i++)
@@ -596,9 +647,8 @@ struct Network
     dataSet.splitData();
 
     for (size_t i = 0; i < EPOCS; i++)
-    // for (size_t i = 0; i < 1; i++)
     {
-      cout << "EPOC: " << i << endl;
+      cout << "EEEEEEEEEEEPOC: " << i << endl;
       dataSet.shuffleTrainData();
       for (size_t j = 0; j < dataSet.trainData.size(); j++)
       // for (size_t j = 0; j < 1; j++)
@@ -611,13 +661,16 @@ struct Network
         // cout << "2--" << endl;
         // printNetwork();
         // cout << "3--" << endl;
-        backProp(row);
+        vector<double> labelRow = dataSet.getTrainLabels()[j];
+        backProp(labelRow);
         // printNetwork();
       }
-      cout << "  MSE: " << getMSE() << endl;
+      // cout << "  MSE: " << getMSE() << endl;
       if (i % 5 == 0)
         saveState();
-      cout << "  ME: " << getME() << endl;
+      vector<vector<double>> vF =  dataSet.getValidationFeatures();
+      vector<pair<double,double>> vL =  dataSet.getValidationLabels();
+      cout << "  ME: " << endl << getME(vF, vL) << endl;
     }
   }
 
@@ -626,6 +679,22 @@ struct Network
     ifstream file;
     file.open("savedModel_9.txt");
     string x;
+    file >> x;
+    dataSet.x1Min= stod(x);
+    file >> x;
+    dataSet.x1Max= stod(x);
+    file >> x;
+    dataSet.x2Min= stod(x);
+    file >> x;
+    dataSet.x2Max= stod(x);
+    file >> x;
+    dataSet.y1Min= stod(x);
+    file >> x;
+    dataSet.y1Max= stod(x);
+    file >> x;
+    dataSet.y2Min= stod(x);
+    file >> x;
+    dataSet.y2Max= stod(x);
     file >> x;
     int temp = stoi(x);
     for (int i = 0; i < temp; i++)
@@ -678,7 +747,7 @@ struct Network
 
 int main()
 {
-  srand(42);
+  srand(5);
 
   Network network = Network();
   network.train();
