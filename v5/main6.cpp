@@ -146,7 +146,7 @@ struct DataSet
   {
     return y1pred * (y1Max - y1Min) + y1Min;
   }
-  double denormallizeY2(double y2pred)
+  double denormalizeY2(double y2pred)
   {
     return y2pred * (y2Max - y2Min) + y2Min;
   }
@@ -289,7 +289,8 @@ struct Network
     cout << "   **********" << endl;
     for (size_t i = 0; i < layers.size(); i++)
     {
-      cout << "    Layer " << i << endl;
+      cout << endl
+           << "    Layer " << i << endl;
       for (size_t j = 0; j < layers[i].neurons.size(); j++)
       {
         cout << "inVal: " << layers[i].neurons[j].inVal << "    actVal: " << layers[i].neurons[j].actVal << endl;
@@ -299,6 +300,12 @@ struct Network
         for (size_t k = 0; k < layers[i].neurons[j].weights.size(); k++)
         {
           cout << " " << layers[i].neurons[j].weights[k];
+        }
+        cout << endl;
+        cout << "        delta weigths: ";
+        for (size_t k = 0; k < layers[i].neurons[j].deltaWeights.size(); k++)
+        {
+          cout << " " << layers[i].neurons[j].deltaWeights[k];
         }
         cout << endl;
       }
@@ -318,11 +325,10 @@ struct Network
     layers[0].neurons[2].actVal = dataSet.normalizeX2(row.second);
 
     // Hidden Layer
-    for (size_t i = 1; i < 3; i++)
+    for (size_t i = 1; i < layers[1].neurons.size(); i++)
     {
       // Set input values
       layers[1].neurons[i].inVal = 0;
-      cout << "size " << layers[0].neurons[i].weights.size() << endl;
       for (size_t j = 0; j < layers[1].neurons[i].weights.size(); j++)
       {
         layers[1].neurons[i].inVal += layers[0].neurons[j].actVal * layers[1].neurons[i].weights[j];
@@ -387,6 +393,59 @@ struct Network
     }
   }
 
+  pair<double, double> predict(pair<double, double> row)
+  {
+    this->forwardProp(row);
+    double y1 = dataSet.denormalizeY1(layers[2].neurons[0].actVal);
+    double y2 = dataSet.denormalizeY2(layers[2].neurons[1].actVal);
+    return make_pair(y1, y2);
+  }
+
+  void validate()
+  {
+    vector<pair<double, double>> validationFeatures = dataSet.getFeatures("validation", false);
+    vector<pair<double, double>> validationLabels = dataSet.getLabels("validation", false);
+    double e = 0;
+    for (size_t i = 0; i < validationFeatures.size(); i++)
+    {
+      pair<double, double> pred = predict(validationFeatures[i]);
+      double e1 = abs(pred.first - validationLabels[i].first);
+      double e2 = abs(pred.second - validationLabels[i].second);
+      e += abs(e2 - e1);
+    }
+    e = e / validationFeatures.size();
+    cout << "me: " << e << endl;
+  }
+
+  void saveModel()
+  {
+    ofstream file;
+    int hiddenSize = layers[1].neurons.size();
+    file.open("savedModel_" + to_string(hiddenSize) + ".txt");
+    file << dataSet.x1Min << endl;
+    file << dataSet.x1Max << endl;
+    file << dataSet.x2Min << endl;
+    file << dataSet.x2Max << endl;
+    file << dataSet.y1Min << endl;
+    file << dataSet.y1Max << endl;
+    file << dataSet.y2Min << endl;
+    file << dataSet.y2Max << endl;
+    file << hiddenSize << endl;
+    for (size_t i = 1; i < 3; i++)
+    {
+      for (size_t j = 0; j < layers[i].neurons.size(); j++)
+      {
+        for (size_t k = 0; k < layers[i].neurons[j].weights.size(); k++)
+        {
+          file << layers[i].neurons[j].weights[k] << " ";
+        }
+        file << endl;
+      }
+      file << endl;
+    }
+    file.close();
+  }
+
   void train()
   {
     for (size_t i = 0; i < EPOCS; i++)
@@ -399,12 +458,13 @@ struct Network
       for (size_t i = 0; i < 1; i++)
       {
         forwardProp(features[i]);
-        printNetwork();
-        cout << "----------" << endl;
+        // printNetwork();
         backProp(normalizedLabels[i]);
-        printNetwork();
-        cout << "Norm labels: " << normalizedLabels[i].first << " " << normalizedLabels[i].second << endl;
+        // printNetwork();
       }
+      validate();
+      if (i % 10 == 0)
+        saveModel();
     }
   }
 };
